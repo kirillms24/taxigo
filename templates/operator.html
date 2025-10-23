@@ -1,10 +1,37 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h2>Панель оператора</h2>
-
-<h3>Обращения пользователей</h3>
-<div id="operatorChat">
-    <!-- Тут будут чаты от пользователей -->
+<div id="operatorChats">
+    {% for msg in messages %}
+    <div style="border:1px solid #ccc; padding:5px; margin-bottom:5px;">
+        <p><b>{{ msg.user.name }}:</b> {{ msg.content }}</p>
+        <input type="text" id="reply-{{ msg.id }}" placeholder="Ответ оператора">
+        <button onclick="sendReply({{ msg.id }})">Отправить</button>
+    </div>
+    {% else %}
+    <p>Нет новых обращений.</p>
+    {% endfor %}
 </div>
 
+<script>
+async function sendReply(msgId) {
+    const input = document.getElementById('reply-' + msgId);
+    const reply = input.value.trim();
+    if (!reply) return;
+
+    const res = await fetch("/operator_reply", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message_id: msgId, reply: reply})
+    });
+    const data = await res.json();
+    if (data.status === "ok") {
+        alert("Ответ отправлен пользователю!");
+        location.reload();
+    } else {
+        alert("Ошибка при отправке ответа.");
+    }
+}
+</script>
 {% endblock %}
