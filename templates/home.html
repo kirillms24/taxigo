@@ -1,132 +1,138 @@
 {% extends "base.html" %}
-{% block content %}
-<style>
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f5f5f5;
-}
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 50px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.header h1 {
-    font-size: 28px;
-    color: #ffcc00;
-}
-.header .buttons button {
-    background-color: #ffcc00;
-    border: none;
-    color: #000;
-    padding: 8px 18px;
-    margin-left: 10px;
-    border-radius: 6px;
-    font-weight: bold;
-    cursor: pointer;
-}
-.header .buttons button:hover {
-    background-color: #e6b800;
-}
-.main-container {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    margin: 30px;
-    gap: 30px;
-}
-.call-taxi {
-    background: #fff;
-    padding: 25px;
-    border-radius: 12px;
-    width: 400px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-.call-taxi input {
-    padding: 12px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-.call-taxi button {
-    background-color: #ffcc00;
-    border: none;
-    padding: 12px;
-    font-weight: bold;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.call-taxi button:hover {
-    background-color: #e6b800;
-}
-#map {
-    flex: 1;
-    height: 500px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-</style>
+{% block head_extra %}
+<!-- Яндекс API (вставьте ваш key) -->
+<script src="https://api-maps.yandex.ru/2.1/?apikey=YOUR_YANDEX_API_KEY&lang=ru_RU" type="text/javascript"></script>
+{% endblock %}
 
+{% block content %}
 <div class="header">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='images/bot.png') }}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover"/>
     <h1>ТаксиGo</h1>
-    <div class="buttons">
-        {% if user %}
-            <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
-            <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
-            {% if user.role == 'admin' %}
-                <a href="{{ url_for('admin') }}"><button>Админ</button></a>
-            {% endif %}
-            <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
-        {% else %}
-            <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
-            <a href="{{ url_for('home') }}"><button onclick="showLoginModal()">Вход / Регистрация</button></a>
-        {% endif %}
-    </div>
+  </div>
+  <div class="nav-buttons">
+    {% if user %}
+      <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
+      <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+      {% if user.role == 'admin' %}<a href="{{ url_for('admin') }}"><button>Админ</button></a>{% endif %}
+      <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
+    {% else %}
+      <button onclick="showLoginModal()">Вход / Регистрация</button>
+      <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+    {% endif %}
+  </div>
 </div>
 
 <div class="main-container">
-    <div class="call-taxi">
-        <h3>Вызвать такси</h3>
-        <form id="taxiForm" onsubmit="return callTaxi()">
-            <input type="text" id="from" placeholder="Откуда" required>
-            <input type="text" id="to" placeholder="Куда" required>
-            <button type="submit">Вызвать</button>
-        </form>
-        <p id="taxiResult" class="taxi-result"></p>
-    </div>
+  <div class="call-taxi">
+    <h3>Вызвать такси</h3>
+    <form id="taxiForm" onsubmit="return callTaxi()">
+      <input id="from" placeholder="Откуда" required />
+      <input id="to" placeholder="Куда" required />
+      <button type="submit">Вызвать</button>
+    </form>
+    <p id="taxiResult" style="margin-top:10px;font-weight:700;color:green"></p>
+  </div>
 
+  <div class="map-card">
     <div id="map"></div>
+  </div>
 </div>
 
-<!-- Подключаем Яндекс.Карты -->
-<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+<!-- login modal -->
+<div id="loginModal" onclick="if(event.target===this) closeLoginModal()">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Вход / Регистрация</h3>
+      <button onclick="closeLoginModal()" style="background:none;border:none;font-size:20px;cursor:pointer">×</button>
+    </div>
+    <form id="loginForm" onsubmit="return loginUser()" style="margin-top:12px">
+      <input id="email" type="email" placeholder="Email" required />
+      <input id="password" type="password" placeholder="Пароль" required />
+      <input id="name" type="text" placeholder="Имя (для регистрации, опционально)" />
+      <button type="submit" style="margin-top:8px">Войти / Зарегистрироваться</button>
+      <p id="loginMsg" style="color:#c00;margin-top:8px"></p>
+    </form>
+  </div>
+</div>
+
 <script>
-ymaps.ready(init);
-function init() {
-    var map = new ymaps.Map("map", {
-        center: [55.751244, 37.618423],
-        zoom: 12,
-        controls: ['zoomControl', 'geolocationControl']
+/* Если у вас нет API-ключа — карта может не показывать tiles,
+   но элементы интерфейса и встроенные стили будут видны. */
+ymaps.ready(initMap);
+
+let ymMap = null;
+let cars = [];
+
+function initMap(){
+  try {
+    ymMap = new ymaps.Map('map', {
+      center: [55.751244, 37.618423],
+      zoom: 12,
+      controls: ['zoomControl','geolocationControl']
     });
 
-    // Добавляем 5 случайных машинок
-    for (let i = 0; i < 5; i++) {
-        let lat = 55.751244 + Math.random() * 0.05;
-        let lng = 37.618423 + Math.random() * 0.05;
-        let car = new ymaps.Placemark([lat, lng], { hintContent: "Машина ТаксиGo" }, { preset: 'islands#yellowIcon' });
-        map.geoObjects.add(car);
+    // Простейшая иконка (если статический файл images/car.png есть — используется)
+    let iconHref = "{{ url_for('static', filename='images/car.png') }}";
+
+    for (let i=0;i<6;i++){
+      let lat = 55.751244 + (Math.random()-0.5)*0.06;
+      let lng = 37.618423 + (Math.random()-0.5)*0.06;
+      let placemark = new ymaps.Placemark([lat,lng], { hintContent: 'Такси' }, {
+        iconLayout: 'default#image',
+        iconImageHref: iconHref,
+        iconImageSize: [44,44],
+        iconImageOffset: [-22,-22]
+      });
+      ymMap.geoObjects.add(placemark);
+      cars.push(placemark);
     }
+
+    setInterval(()=>{
+      cars.forEach(p=>{
+        let c = p.geometry.getCoordinates();
+        c[0] += (Math.random()-0.5)*0.0012;
+        c[1] += (Math.random()-0.5)*0.0012;
+        p.geometry.setCoordinates(c);
+      });
+    },900);
+
+  } catch (e) {
+    console.error("ymaps init error:", e);
+  }
 }
 
-// Вызов такси (псевдо)
-function callTaxi() {
-    var from = document.getElementById('from').value;
-    var to = document.getElementById('to').value;
-    document.getElementById('taxiResult').innerText = `Такси направлено от "${from}" к "${to}"`;
-    return false;
+function callTaxi(){
+  let from = document.getElementById('from').value.trim();
+  let to = document.getElementById('to').value.trim();
+  if(!from || !to) return false;
+  document.getElementById('taxiResult').innerText = `Заказ принят: ${from} → ${to}`;
+  return false;
+}
+
+function showLoginModal(){ document.getElementById('loginModal').style.display='flex'; }
+function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
+
+async function loginUser(){
+  let email = document.getElementById('email').value;
+  let password = document.getElementById('password').value;
+  let name = document.getElementById('name').value;
+  let msg = document.getElementById('loginMsg');
+  msg.textContent = '';
+  try {
+    let url = name ? '/register' : '/login';
+    let form = new FormData();
+    form.append('email', email);
+    form.append('password', password);
+    if(name) form.append('name', name);
+    let res = await fetch(url, { method:'POST', body: form });
+    if (res.redirected) { window.location = res.url; return false; }
+    let text = await res.text();
+    msg.textContent = text;
+  } catch (e) {
+    msg.textContent = 'Ошибка: ' + e.message;
+  }
+  return false;
 }
 </script>
 {% endblock %}
