@@ -4,11 +4,10 @@ from datetime import datetime
 from bot_logic import bot_respond
 import os
 
-# === Создание Flask приложения с явным указанием папок ===
 app = Flask(
     __name__,
-    static_folder='static',      # Папка для CSS, JS, изображений
-    template_folder='templates'  # Папка для HTML-шаблонов
+    static_folder='static',
+    template_folder='templates'
 )
 app.secret_key = 'supersecretkey'
 
@@ -16,7 +15,6 @@ app.secret_key = 'supersecretkey'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///taxigo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
 
 # ======= Модели =======
 class User(db.Model):
@@ -26,53 +24,42 @@ class User(db.Model):
     password = db.Column(db.String(100))
     role = db.Column(db.String(20), default='user')  # user/admin/operator
 
-
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    sender = db.Column(db.String(20), nullable=False)  # 'user', 'bot', 'operator'
+    sender = db.Column(db.String(20), nullable=False)  # user/bot/operator
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     handled_by_operator = db.Column(db.Boolean, default=False)
-
 
 # ======= Маршруты =======
 @app.route('/')
 def home():
-    user = None
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
+    user = User.query.get(session['user_id']) if 'user_id' in session else None
     return render_template('home.html', user=user)
-
 
 @app.route('/register', methods=['POST'])
 def register():
-    name = request.form['name']
-    email = request.form['email']
-    password = request.form['password']
-
+    name = request.form.get('name')
+    email = request.form.get('email')
+    password = request.form.get('password')
     if User.query.filter_by(email=email).first():
         return "Пользователь уже существует"
-
     new_user = User(name=name, email=email, password=password)
     db.session.add(new_user)
     db.session.commit()
     session['user_id'] = new_user.id
     return redirect(url_for('profile'))
 
-
 @app.route('/login', methods=['POST'])
 def login():
-    email = request.form['email']
-    password = request.form['password']
-
+    email = request.form.get('email')
+    password = request.form.get('password')
     user = User.query.filter_by(email=email, password=password).first()
     if not user:
         return "Неверный email или пароль"
-
     session['user_id'] = user.id
     return redirect(url_for('profile'))
-
 
 @app.route('/profile')
 def profile():
@@ -81,95 +68,69 @@ def profile():
     user = User.query.get(session['user_id'])
     return render_template('profile.html', user=user)
 
-
 @app.route('/logout')
 def logout():
     session.pop('user_id', None)
     return redirect(url_for('home'))
 
-
 @app.route('/support')
 def support():
     return render_template('chat.html')
 
-
-# ======= API для чата с ботом =======
+# ======= API чат-бота =======
 @app.route('/send_message', methods=['POST'])
 def send_message():
     if 'user_id' not in session:
         return jsonify({"response": "Сессия не найдена, войдите в систему."})
-
     user_id = session['user_id']
     data = request.json
     message = data.get("message")
-
-    # Сохраняем сообщение пользователя
     user_msg = Message(user_id=user_id, content=message, sender='user')
     db.session.add(user_msg)
     db.session.commit()
-
-    # Получаем ответ бота
     response = bot_respond(message, user_id=user_id)
     return jsonify({"response": response})
 
-
-# ======= Панель администратора =======
+# ======= Админ =======
 @app.route('/admin')
 def admin():
     if 'user_id' not in session:
         return redirect(url_for('home'))
     user = User.query.get(session['user_id'])
-    if user.role != "admin":
+    if user.role != 'admin':
         return "Доступ запрещён"
     return render_template('admin.html', user=user)
 
-
-# ======= Панель оператора =======
+# ======= Оператор =======
 @app.route('/operator')
 def operator():
     if 'user_id' not in session:
         return redirect(url_for('home'))
     user = User.query.get(session['user_id'])
-    if user.role not in ['operator', 'admin']:
+    if user.role not in ['operator','admin']:
         return "Доступ запрещён"
-
-    # Сообщения пользователей, не обработанные оператором
     messages = Message.query.filter_by(sender='user', handled_by_operator=False).all()
     return render_template('operator.html', user=user, messages=messages)
-
 
 @app.route('/operator_reply', methods=['POST'])
 def operator_reply():
     if 'user_id' not in session:
-        return jsonify({"status": "error"})
-
+        return jsonify({"status":"error"})
     user = User.query.get(session['user_id'])
-    if user.role not in ['operator', 'admin']:
-        return jsonify({"status": "error"})
-
+    if user.role not in ['operator','admin']:
+        return jsonify({"status":"error"})
     data = request.json
     msg_id = data.get('message_id')
     reply = data.get('reply')
     msg = Message.query.get(msg_id)
-
     if not msg:
-        return jsonify({"status": "error"})
-
-    # Создаём сообщение от оператора
+        return jsonify({"status":"error"})
     operator_msg = Message(user_id=msg.user_id, content=reply, sender='operator', handled_by_operator=True)
     db.session.add(operator_msg)
-
-    # Отмечаем исходное сообщение как обработанное
     msg.handled_by_operator = True
     db.session.commit()
+    return jsonify({"status":"ok"})
 
-    return jsonify({"status": "ok"})
-
-
-# ======= Точка входа =======
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()  # создаёт таблицы, если их нет
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
-
+    db.create_all()
+    app.run(debug=True)
