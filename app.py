@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from bot_logic import bot_respond
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -65,5 +66,35 @@ def logout():
 def support():
     return render_template('chat.html')
 
+# ======= API для чата с ботом =======
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data = request.json
+    message = data.get("message")
+    response = bot_respond(message)
+    # Здесь можно сохранить сообщение в базе, если нужно
+    return jsonify({"response": response})
+
+# ======= Панель администратора =======
+@app.route('/admin')
+def admin():
+    if 'user_id' not in session:
+        return redirect(url_for('home'))
+    user = User.query.get(session['user_id'])
+    if user.role != "admin":
+        return "Доступ запрещён"
+    return render_template('admin.html', user=user)
+
+# ======= Панель оператора =======
+@app.route('/operator')
+def operator():
+    if 'user_id' not in session:
+        return redirect(url_for('home'))
+    user = User.query.get(session['user_id'])
+    if user.role != "operator" and user.role != "admin":
+        return "Доступ запрещён"
+    return render_template('operator.html', user=user)
+
 if __name__ == '__main__':
     app.run(debug=True)
+
