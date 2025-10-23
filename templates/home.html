@@ -1,25 +1,58 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h2>Главная страница ТаксиGo</h2>
 
+<!-- Навигация по кнопкам -->
+<div style="margin-bottom:20px;">
+    {% if user %}
+        <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
+        <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+        {% if user.role == 'admin' %}
+            <a href="{{ url_for('admin') }}"><button>Админ</button></a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
+    {% else %}
+        <button onclick="showLoginModal()">Вход/Регистрация</button>
+        <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+    {% endif %}
+</div>
+
 <!-- Форма вызова такси -->
-<div>
+<div style="margin-bottom:20px;">
     <h3>Вызвать такси</h3>
-    <form>
-        <input type="text" placeholder="Откуда">
-        <input type="text" placeholder="Куда">
+    <form id="taxiForm" onsubmit="return callTaxi()">
+        <input type="text" id="from" placeholder="Откуда" required>
+        <input type="text" id="to" placeholder="Куда" required>
         <button type="submit">Вызвать</button>
     </form>
+    <p id="taxiResult" style="color:green; font-weight:bold;"></p>
 </div>
 
 <!-- Карта с машинками -->
 <div id="map" style="height:400px;"></div>
 
+<!-- Модальное окно для входа/регистрации -->
+<div id="loginModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div style="background:#fff; padding:20px; width:300px; margin:100px auto; position:relative;">
+        <span style="position:absolute; top:5px; right:10px; cursor:pointer;" onclick="closeLoginModal()">X</span>
+        <h3>Вход/Регистрация</h3>
+        <form id="loginForm" onsubmit="return loginUser()">
+            <input type="email" id="email" placeholder="Email" required><br><br>
+            <input type="password" id="password" placeholder="Пароль" required><br><br>
+            <input type="text" id="name" placeholder="Имя (для регистрации)"><br><br>
+            <button type="submit">Войти / Зарегистрироваться</button>
+        </form>
+        <p id="loginMsg" style="color:red;"></p>
+    </div>
+</div>
+
 <script>
+    // Инициализация карты
     var map = L.map('map').setView([55.751244, 37.618423], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
 
-    // 5 машинок
+    // 5 машинок на карте
     var cars = [];
     for(let i=0; i<5; i++){
         let marker = L.marker([55.751244 + Math.random()*0.05, 37.618423 + Math.random()*0.05]).addTo(map);
@@ -35,5 +68,44 @@
             marker.setLatLng([newLat,newLng]);
         });
     }, 1000);
+
+    // Функция вызова такси (псевдо)
+    function callTaxi(){
+        var from = document.getElementById('from').value;
+        var to = document.getElementById('to').value;
+        document.getElementById('taxiResult').innerText = `Такси направлено от "${from}" к "${to}"`;
+        return false;
+    }
+
+    // Модальное окно
+    function showLoginModal(){ document.getElementById('loginModal').style.display='block'; }
+    function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
+
+    // Вход / регистрация через AJAX
+    async function loginUser(){
+        let email = document.getElementById('email').value;
+        let password = document.getElementById('password').value;
+        let name = document.getElementById('name').value;
+        let msg = document.getElementById('loginMsg');
+
+        try {
+            let url = name ? '/register' : '/login';
+            let formData = new FormData();
+            formData.append('email', email);
+            formData.append('password', password);
+            if(name) formData.append('name', name);
+
+            let res = await fetch(url, {method:'POST', body:formData});
+            if(res.redirected){
+                window.location.href = res.url;
+            } else {
+                let text = await res.text();
+                msg.innerText = text;
+            }
+        } catch(e){
+            msg.innerText = "Ошибка сервера, попробуйте позже.";
+        }
+        return false;
+    }
 </script>
 {% endblock %}
