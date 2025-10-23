@@ -1,4 +1,4 @@
 Flask==3.3.2
-Flask-SQLAlchemy==3.0.5
+Flask-SQLAlchemy==3.2.5
 gunicorn==21.2.0
 requests==2.32.1
