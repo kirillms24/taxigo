@@ -1,138 +1,89 @@
 {% extends "base.html" %}
-{% block head_extra %}
-<!-- Яндекс API (вставьте ваш key) -->
-<script src="https://api-maps.yandex.ru/2.1/?apikey=YOUR_YANDEX_API_KEY&lang=ru_RU" type="text/javascript"></script>
-{% endblock %}
 
 {% block content %}
 <div class="header">
-  <div class="brand">
-    <img src="{{ url_for('static', filename='images/bot.png') }}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover"/>
-    <h1>ТаксиGo</h1>
-  </div>
-  <div class="nav-buttons">
-    {% if user %}
-      <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
-      <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
-      {% if user.role == 'admin' %}<a href="{{ url_for('admin') }}"><button>Админ</button></a>{% endif %}
-      <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
-    {% else %}
-      <button onclick="showLoginModal()">Вход / Регистрация</button>
-      <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
-    {% endif %}
-  </div>
+    <div class="brand"><h1>ТаксиGo</h1></div>
+    <div class="nav-buttons">
+        {% if user %}
+            <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
+            <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+            {% if user.role=='admin' %}
+                <a href="{{ url_for('admin') }}"><button>Админ</button></a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
+        {% else %}
+            <button onclick="showLoginModal()">Вход / Регистрация</button>
+            <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+        {% endif %}
+    </div>
 </div>
 
 <div class="main-container">
-  <div class="call-taxi">
-    <h3>Вызвать такси</h3>
-    <form id="taxiForm" onsubmit="return callTaxi()">
-      <input id="from" placeholder="Откуда" required />
-      <input id="to" placeholder="Куда" required />
-      <button type="submit">Вызвать</button>
-    </form>
-    <p id="taxiResult" style="margin-top:10px;font-weight:700;color:green"></p>
-  </div>
-
-  <div class="map-card">
-    <div id="map"></div>
-  </div>
-</div>
-
-<!-- login modal -->
-<div id="loginModal" onclick="if(event.target===this) closeLoginModal()">
-  <div class="modal-content">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h3 style="margin:0">Вход / Регистрация</h3>
-      <button onclick="closeLoginModal()" style="background:none;border:none;font-size:20px;cursor:pointer">×</button>
+    <div class="call-taxi">
+        <h3>Вызвать такси</h3>
+        <form id="taxiForm" onsubmit="return callTaxi()">
+            <input type="text" id="from" placeholder="Откуда" required>
+            <input type="text" id="to" placeholder="Куда" required>
+            <button type="submit">Вызвать</button>
+        </form>
+        <p id="taxiResult"></p>
     </div>
-    <form id="loginForm" onsubmit="return loginUser()" style="margin-top:12px">
-      <input id="email" type="email" placeholder="Email" required />
-      <input id="password" type="password" placeholder="Пароль" required />
-      <input id="name" type="text" placeholder="Имя (для регистрации, опционально)" />
-      <button type="submit" style="margin-top:8px">Войти / Зарегистрироваться</button>
-      <p id="loginMsg" style="color:#c00;margin-top:8px"></p>
-    </form>
-  </div>
+    <div class="map-card">
+        <div id="map"></div>
+    </div>
 </div>
 
+<div id="loginModal">
+    <div class="modal-content">
+        <span onclick="closeLoginModal()" style="float:right;cursor:pointer;">×</span>
+        <h3>Вход / Регистрация</h3>
+        <form id="loginForm" onsubmit="return loginUser()">
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Пароль" required>
+            <input type="text" id="name" placeholder="Имя (для регистрации)">
+            <button type="submit">Войти / Зарегистрироваться</button>
+            <p id="loginMsg" style="color:red"></p>
+        </form>
+    </div>
+</div>
+
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 <script>
-/* Если у вас нет API-ключа — карта может не показывать tiles,
-   но элементы интерфейса и встроенные стили будут видны. */
-ymaps.ready(initMap);
-
-let ymMap = null;
-let cars = [];
-
-function initMap(){
-  try {
-    ymMap = new ymaps.Map('map', {
-      center: [55.751244, 37.618423],
-      zoom: 12,
-      controls: ['zoomControl','geolocationControl']
-    });
-
-    // Простейшая иконка (если статический файл images/car.png есть — используется)
-    let iconHref = "{{ url_for('static', filename='images/car.png') }}";
-
-    for (let i=0;i<6;i++){
-      let lat = 55.751244 + (Math.random()-0.5)*0.06;
-      let lng = 37.618423 + (Math.random()-0.5)*0.06;
-      let placemark = new ymaps.Placemark([lat,lng], { hintContent: 'Такси' }, {
-        iconLayout: 'default#image',
-        iconImageHref: iconHref,
-        iconImageSize: [44,44],
-        iconImageOffset: [-22,-22]
-      });
-      ymMap.geoObjects.add(placemark);
-      cars.push(placemark);
+    ymaps.ready(init);
+    function init() {
+        var map = new ymaps.Map('map', {center:[55.751244,37.618423], zoom:12});
+        for(let i=0;i<5;i++){
+            let car = new ymaps.Placemark(
+                [55.751244 + Math.random()*0.05, 37.618423 + Math.random()*0.05],
+                {iconContent:'🚕'}
+            );
+            map.geoObjects.add(car);
+        }
     }
 
-    setInterval(()=>{
-      cars.forEach(p=>{
-        let c = p.geometry.getCoordinates();
-        c[0] += (Math.random()-0.5)*0.0012;
-        c[1] += (Math.random()-0.5)*0.0012;
-        p.geometry.setCoordinates(c);
-      });
-    },900);
+    function callTaxi(){
+        let from = document.getElementById('from').value;
+        let to = document.getElementById('to').value;
+        document.getElementById('taxiResult').innerText = `Такси направлено от "${from}" к "${to}"`;
+        return false;
+    }
 
-  } catch (e) {
-    console.error("ymaps init error:", e);
-  }
-}
+    function showLoginModal(){ document.getElementById('loginModal').style.display='flex'; }
+    function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
 
-function callTaxi(){
-  let from = document.getElementById('from').value.trim();
-  let to = document.getElementById('to').value.trim();
-  if(!from || !to) return false;
-  document.getElementById('taxiResult').innerText = `Заказ принят: ${from} → ${to}`;
-  return false;
-}
-
-function showLoginModal(){ document.getElementById('loginModal').style.display='flex'; }
-function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
-
-async function loginUser(){
-  let email = document.getElementById('email').value;
-  let password = document.getElementById('password').value;
-  let name = document.getElementById('name').value;
-  let msg = document.getElementById('loginMsg');
-  msg.textContent = '';
-  try {
-    let url = name ? '/register' : '/login';
-    let form = new FormData();
-    form.append('email', email);
-    form.append('password', password);
-    if(name) form.append('name', name);
-    let res = await fetch(url, { method:'POST', body: form });
-    if (res.redirected) { window.location = res.url; return false; }
-    let text = await res.text();
-    msg.textContent = text;
-  } catch (e) {
-    msg.textContent = 'Ошибка: ' + e.message;
-  }
-  return false;
-}
+    async function loginUser(){
+        let email=document.getElementById('email').value;
+        let password=document.getElementById('password').value;
+        let name=document.getElementById('name').value;
+        let response;
+        if(name){
+            response = await fetch('/register',{method:'POST',body:new URLSearchParams({email,password,name})});
+        } else {
+            response = await fetch('/login',{method:'POST',body:new URLSearchParams({email,password})});
+        }
+        if(response.redirected){ window.location.href=response.url; }
+        else{ document.getElementById('loginMsg').innerText = await response.text(); }
+        return false;
+    }
 </script>
 {% endblock %}
