@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
 <!-- Хедер -->
 <div class="header">
@@ -61,7 +60,6 @@ function init(){
         zoom: 12
     });
 
-    // Добавляем 5 машинок
     for(let i=0;i<5;i++){
         let coords = [55.751244 + Math.random()*0.05, 37.618423 + Math.random()*0.05];
         let placemark = new ymaps.Placemark(coords, {}, {
@@ -74,18 +72,14 @@ function init(){
         cars.push(placemark);
     }
 
-    // Движение машинок
     setInterval(()=>{
         cars.forEach(p=>{
             let coords = p.geometry.getCoordinates();
-            let newLat = coords[0] + (Math.random()-0.5)*0.001;
-            let newLng = coords[1] + (Math.random()-0.5)*0.001;
-            p.geometry.setCoordinates([newLat, newLng]);
+            p.geometry.setCoordinates([coords[0] + (Math.random()-0.5)*0.001, coords[1] + (Math.random()-0.5)*0.001]);
         });
     },1000);
 }
 
-// Вызов такси (псевдо)
 function callTaxi(){
     var from = document.getElementById('from').value;
     var to = document.getElementById('to').value;
@@ -93,11 +87,9 @@ function callTaxi(){
     return false;
 }
 
-// Модальное окно
 function showLoginModal(){ document.getElementById('loginModal').style.display='block'; }
 function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
 
-// Вход / регистрация
 async function loginUser(){
     let email = document.getElementById('email').value;
     let password = document.getElementById('password').value;
@@ -115,8 +107,7 @@ async function loginUser(){
         if(res.redirected){
             window.location.href = res.url;
         } else {
-            let text = await res.text();
-            msg.innerText = text;
+            msg.innerText = await res.text();
         }
     } catch(e){
         msg.innerText = "Ошибка сервера, попробуйте позже.";
