@@ -74,7 +74,7 @@ def logout():
 def support():
     return render_template('chat.html')
 
-# ======= API для чата с ботом =======
+# ======= API для чата =======
 @app.route('/send_message', methods=['POST'])
 def send_message():
     if 'user_id' not in session:
@@ -82,25 +82,11 @@ def send_message():
     user_id = session['user_id']
     data = request.json
     message = data.get("message")
-
-    # Сохраняем сообщение пользователя
     user_msg = Message(user_id=user_id, content=message, sender='user')
     db.session.add(user_msg)
     db.session.commit()
-
-    # Получаем ответ бота и сохраняем его
     response = bot_respond(message, user_id=user_id)
     return jsonify({"response": response})
-
-# ======= API для получения новых сообщений оператора =======
-@app.route('/fetch_operator_messages')
-def fetch_operator_messages():
-    if 'user_id' not in session:
-        return jsonify({"messages":[]})
-    user_id = session['user_id']
-    messages = Message.query.filter_by(user_id=user_id, sender='operator').order_by(Message.timestamp).all()
-    result = [{"id": m.id, "content": m.content} for m in messages]
-    return jsonify({"messages": result})
 
 # ======= Панель администратора =======
 @app.route('/admin')
@@ -120,12 +106,9 @@ def operator():
     user = User.query.get(session['user_id'])
     if user.role not in ['operator', 'admin']:
         return "Доступ запрещён"
-
-    # Выбираем все сообщения пользователей, которые ещё не обработаны
     messages = Message.query.filter_by(sender='user', handled_by_operator=False).all()
     return render_template('operator.html', user=user, messages=messages)
 
-# ======= API для ответа оператора =======
 @app.route('/operator_reply', methods=['POST'])
 def operator_reply():
     if 'user_id' not in session:
@@ -133,24 +116,18 @@ def operator_reply():
     user = User.query.get(session['user_id'])
     if user.role not in ['operator', 'admin']:
         return jsonify({"status":"error"})
-
     data = request.json
     msg_id = data.get('message_id')
     reply = data.get('reply')
-
     msg = Message.query.get(msg_id)
     if not msg:
         return jsonify({"status":"error"})
-
-    # Создаем сообщение от оператора
     operator_msg = Message(user_id=msg.user_id, content=reply, sender='operator', handled_by_operator=True)
     db.session.add(operator_msg)
-
-    # Отмечаем исходное сообщение как обработанное
     msg.handled_by_operator = True
     db.session.commit()
-
     return jsonify({"status":"ok"})
 
 if __name__ == '__main__':
+    db.create_all()
     app.run(debug=True)
