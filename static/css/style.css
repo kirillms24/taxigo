@@ -1,1 +1,27 @@
+body { font-family: 'Arial', sans-serif; background: #f5f5f5; margin:0; padding:0; }
+.header { display:flex; justify-content:space-between; align-items:center; padding:15px 50px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); position:sticky; top:0; z-index:1000; }
+.header h1 { font-size:28px; color:#ffcc00; margin:0; }
+.header .buttons button { background:#ffcc00; border:none; color:#000; padding:8px 18px; margin-left:10px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.3s; }
+.header .buttons button:hover { background:#e6b800; }
+
+.main-container { display:flex; justify-content:center; align-items:flex-start; margin:30px; gap:30px; flex-wrap:wrap; }
+.call-taxi { background:#fff; padding:25px; border-radius:12px; width:400px; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+.call-taxi h3 { margin-top:0; color:#333; }
+.call-taxi form { display:flex; flex-direction:column; }
+.call-taxi input { padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; font-size:14px; }
+.call-taxi button { background:#ffcc00; border:none; padding:12px; font-weight:bold; border-radius:8px; cursor:pointer; transition:0.3s; }
+.call-taxi button:hover { background:#e6b800; }
+.taxi-result { margin-top:10px; font-weight:bold; color:green; }
+
+#loginModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; }
+#loginModal .modal-content { background:#fff; padding:20px; width:350px; margin:120px auto; border-radius:12px; position:relative; }
+#loginModal .modal-content span.close { position:absolute; top:10px; right:15px; cursor:pointer; font-weight:bold; font-size:18px; }
+#loginModal input { width:100%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid #ddd; }
+#loginModal button { width:100%; padding:12px; border:none; background:#ffcc00; font-weight:bold; border-radius:8px; cursor:pointer; }
+#loginModal button:hover { background:#e6b800; }
+
+@media(max-width:900px){
+    .main-container{ flex-direction:column; align-items:center; }
+    .call-taxi{ width:90%; }
+}
 
