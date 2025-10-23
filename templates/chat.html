@@ -1,19 +1,43 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h2>Чат поддержки</h2>
-<div id="chatBox" style="border:1px solid #ccc; height:300px; overflow:auto;"></div>
-<input type="text" id="msgInput" placeholder="Введите сообщение">
-<button onclick="sendMsg()">Отправить</button>
+
+<!-- Окно чата -->
+<div id="chatBox" style="border:1px solid #ccc; height:300px; overflow:auto; padding:5px; background:#f9f9f9;"></div>
+
+<!-- Поле ввода сообщения -->
+<input type="text" id="msgInput" placeholder="Введите сообщение" style="width:80%; padding:5px;">
+<button onclick="sendMsg()" style="padding:5px 10px;">Отправить</button>
 
 <script>
-function sendMsg(){
+async function sendMsg(){
     let input = document.getElementById('msgInput');
-    let msg = input.value;
+    let msg = input.value.trim();
     if(!msg) return;
+
     let chatBox = document.getElementById('chatBox');
-    chatBox.innerHTML += '<p><b>Вы:</b> '+msg+'</p>';
-    // Простейший бот-ответ
-    chatBox.innerHTML += '<p><b>Бот:</b> Здравствуйте! Ваш вопрос получен.</p>';
+    
+    // Добавляем сообщение пользователя в чат
+    chatBox.innerHTML += '<p><b>Вы:</b> ' + msg + '</p>';
+
+    // Отправляем сообщение на сервер для обработки ботом
+    try {
+        const res = await fetch("/send_message", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({message: msg})
+        });
+        const data = await res.json();
+        
+        // Добавляем ответ бота в чат
+        chatBox.innerHTML += '<p><b>Бот:</b> ' + data.response + '</p>';
+    } catch (error) {
+        chatBox.innerHTML += '<p><b>Бот:</b> Ошибка сервера, попробуйте позже.</p>';
+        console.error("Ошибка при отправке сообщения:", error);
+    }
+
+    // Очищаем поле ввода
     input.value = '';
     chatBox.scrollTop = chatBox.scrollHeight;
 }
