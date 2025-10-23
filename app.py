@@ -2,13 +2,19 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from bot_logic import bot_respond
+import os
 
-app = Flask(__name__)
+# === Создание Flask приложения с явным указанием папок ===
+app = Flask(
+    __name__,
+    static_folder='static',      # для CSS, JS, изображений
+    template_folder='templates'  # для HTML-шаблонов
+)
 app.secret_key = 'supersecretkey'
 
+# === Настройка базы данных ===
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///taxigo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 db = SQLAlchemy(app)
 
 # ======= Модели =======
@@ -74,7 +80,7 @@ def logout():
 def support():
     return render_template('chat.html')
 
-# ======= API для чата =======
+# ======= API для чата с ботом =======
 @app.route('/send_message', methods=['POST'])
 def send_message():
     if 'user_id' not in session:
@@ -82,9 +88,11 @@ def send_message():
     user_id = session['user_id']
     data = request.json
     message = data.get("message")
+    # Сохраняем сообщение пользователя
     user_msg = Message(user_id=user_id, content=message, sender='user')
     db.session.add(user_msg)
     db.session.commit()
+    # Получаем ответ бота
     response = bot_respond(message, user_id=user_id)
     return jsonify({"response": response})
 
@@ -106,6 +114,7 @@ def operator():
     user = User.query.get(session['user_id'])
     if user.role not in ['operator', 'admin']:
         return "Доступ запрещён"
+    # Сообщения пользователей, не обработанные оператором
     messages = Message.query.filter_by(sender='user', handled_by_operator=False).all()
     return render_template('operator.html', user=user, messages=messages)
 
@@ -122,12 +131,15 @@ def operator_reply():
     msg = Message.query.get(msg_id)
     if not msg:
         return jsonify({"status":"error"})
+    # Создаём сообщение от оператора
     operator_msg = Message(user_id=msg.user_id, content=reply, sender='operator', handled_by_operator=True)
     db.session.add(operator_msg)
+    # Отмечаем исходное сообщение как обработанное
     msg.handled_by_operator = True
     db.session.commit()
     return jsonify({"status":"ok"})
 
+# ======= Запуск приложения =======
 if __name__ == '__main__':
-    db.create_all()
+    db.create_all()  # создаёт таблицы, если их нет
     app.run(debug=True)
