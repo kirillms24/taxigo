@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Главная страница ТаксиGo</h2>
+
+<!-- Форма вызова такси -->
+<div>
+    <h3>Вызвать такси</h3>
+    <form>
+        <input type="text" placeholder="Откуда">
+        <input type="text" placeholder="Куда">
+        <button type="submit">Вызвать</button>
+    </form>
+</div>
+
+<!-- Карта с машинками -->
+<div id="map" style="height:400px;"></div>
+
+<script>
+    var map = L.map('map').setView([55.751244, 37.618423], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
+
+    // 5 машинок
+    var cars = [];
+    for(let i=0; i<5; i++){
+        let marker = L.marker([55.751244 + Math.random()*0.05, 37.618423 + Math.random()*0.05]).addTo(map);
+        cars.push(marker);
+    }
+
+    // Движение машинок
+    setInterval(() => {
+        cars.forEach(marker => {
+            let latlng = marker.getLatLng();
+            let newLat = latlng.lat + (Math.random()-0.5)*0.001;
+            let newLng = latlng.lng + (Math.random()-0.5)*0.001;
+            marker.setLatLng([newLat,newLng]);
+        });
+    }, 1000);
+</script>
+{% endblock %}
