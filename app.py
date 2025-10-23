@@ -19,6 +19,14 @@ class User(db.Model):
     password = db.Column(db.String(100))
     role = db.Column(db.String(20), default='user')  # user/admin/operator
 
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    sender = db.Column(db.String(20), nullable=False)  # 'user', 'bot', 'operator'
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    handled_by_operator = db.Column(db.Boolean, default=False)
+
 # ======= Маршруты =======
 @app.route('/')
 def home():
@@ -69,10 +77,19 @@ def support():
 # ======= API для чата с ботом =======
 @app.route('/send_message', methods=['POST'])
 def send_message():
+    if 'user_id' not in session:
+        return jsonify({"response": "Сессия не найдена, войдите в систему."})
+    user_id = session['user_id']
     data = request.json
     message = data.get("message")
-    response = bot_respond(message)
-    # Здесь можно сохранить сообщение в базе, если нужно
+
+    # Сохраняем сообщение пользователя
+    user_msg = Message(user_id=user_id, content=message, sender='user')
+    db.session.add(user_msg)
+    db.session.commit()
+
+    # Получаем ответ бота и сохраняем его
+    response = bot_respond(message, user_id=user_id)
     return jsonify({"response": response})
 
 # ======= Панель администратора =======
@@ -91,10 +108,39 @@ def operator():
     if 'user_id' not in session:
         return redirect(url_for('home'))
     user = User.query.get(session['user_id'])
-    if user.role != "operator" and user.role != "admin":
+    if user.role not in ['operator', 'admin']:
         return "Доступ запрещён"
-    return render_template('operator.html', user=user)
+
+    # Выбираем все сообщения пользователей, которые ещё не обработаны
+    messages = Message.query.filter_by(sender='user', handled_by_operator=False).all()
+    return render_template('operator.html', user=user, messages=messages)
+
+# ======= API для ответа оператора =======
+@app.route('/operator_reply', methods=['POST'])
+def operator_reply():
+    if 'user_id' not in session:
+        return jsonify({"status":"error"})
+    user = User.query.get(session['user_id'])
+    if user.role not in ['operator', 'admin']:
+        return jsonify({"status":"error"})
+
+    data = request.json
+    msg_id = data.get('message_id')
+    reply = data.get('reply')
+
+    msg = Message.query.get(msg_id)
+    if not msg:
+        return jsonify({"status":"error"})
+
+    # Создаем сообщение от оператора
+    operator_msg = Message(user_id=msg.user_id, content=reply, sender='operator', handled_by_operator=True)
+    db.session.add(operator_msg)
+
+    # Отмечаем исходное сообщение как обработанное
+    msg.handled_by_operator = True
+    db.session.commit()
+
+    return jsonify({"status":"ok"})
 
 if __name__ == '__main__':
     app.run(debug=True)
-
