@@ -92,6 +92,16 @@ def send_message():
     response = bot_respond(message, user_id=user_id)
     return jsonify({"response": response})
 
+# ======= API для получения новых сообщений оператора =======
+@app.route('/fetch_operator_messages')
+def fetch_operator_messages():
+    if 'user_id' not in session:
+        return jsonify({"messages":[]})
+    user_id = session['user_id']
+    messages = Message.query.filter_by(user_id=user_id, sender='operator').order_by(Message.timestamp).all()
+    result = [{"id": m.id, "content": m.content} for m in messages]
+    return jsonify({"messages": result})
+
 # ======= Панель администратора =======
 @app.route('/admin')
 def admin():
