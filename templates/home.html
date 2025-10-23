@@ -1,111 +1,266 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Главная страница ТаксиGo</h2>
+<style>
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+}
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 50px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+.header h1 {
+    font-size: 28px;
+    color: #ffcc00;
+    margin: 0;
+}
+.header .buttons button {
+    background-color: #ffcc00;
+    border: none;
+    color: #000;
+    padding: 8px 18px;
+    margin-left: 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.header .buttons button:hover {
+    background-color: #e6b800;
+}
+.main-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin: 30px;
+    gap: 30px;
+}
+.call-taxi {
+    background: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    width: 400px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.call-taxi h3 {
+    margin-top: 0;
+    color: #333;
+}
+.call-taxi form {
+    display: flex;
+    flex-direction: column;
+}
+.call-taxi input {
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+}
+.call-taxi button {
+    background-color: #ffcc00;
+    border: none;
+    padding: 12px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.call-taxi button:hover {
+    background-color: #e6b800;
+}
+#map {
+    flex: 1;
+    height: 500px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.taxi-result {
+    margin-top: 10px;
+    font-weight: bold;
+    color: green;
+}
+/* Модальное окно */
+#loginModal {
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.5);
+    z-index:2000;
+}
+#loginModal .modal-content {
+    background:#fff;
+    padding:20px;
+    width:350px;
+    margin:120px auto;
+    border-radius:12px;
+    position:relative;
+}
+#loginModal .modal-content span.close {
+    position:absolute;
+    top:10px;
+    right:15px;
+    cursor:pointer;
+    font-weight:bold;
+    font-size:18px;
+}
+#loginModal input {
+    width:100%;
+    padding:10px;
+    margin-bottom:15px;
+    border-radius:8px;
+    border:1px solid #ddd;
+}
+#loginModal button {
+    width:100%;
+    padding:12px;
+    border:none;
+    background:#ffcc00;
+    font-weight:bold;
+    border-radius:8px;
+    cursor:pointer;
+}
+#loginModal button:hover {
+    background:#e6b800;
+}
+</style>
 
-<!-- Навигация по кнопкам -->
-<div style="margin-bottom:20px;">
-    {% if user %}
-        <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
-        <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
-        {% if user.role == 'admin' %}
-            <a href="{{ url_for('admin') }}"><button>Админ</button></a>
+<!-- ====== Хедер ====== -->
+<div class="header">
+    <h1>ТаксиGo</h1>
+    <div class="buttons">
+        {% if user %}
+            <a href="{{ url_for('profile') }}"><button>Личный кабинет</button></a>
+            <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
+            {% if user.role == 'admin' %}
+                <a href="{{ url_for('admin') }}"><button>Админ</button></a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
+        {% else %}
+            <button onclick="showLoginModal()">Вход / Регистрация</button>
+            <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
         {% endif %}
-        <a href="{{ url_for('logout') }}"><button>Выйти</button></a>
-    {% else %}
-        <button onclick="showLoginModal()">Вход/Регистрация</button>
-        <a href="{{ url_for('support') }}"><button>Поддержка</button></a>
-    {% endif %}
-</div>
-
-<!-- Форма вызова такси -->
-<div style="margin-bottom:20px;">
-    <h3>Вызвать такси</h3>
-    <form id="taxiForm" onsubmit="return callTaxi()">
-        <input type="text" id="from" placeholder="Откуда" required>
-        <input type="text" id="to" placeholder="Куда" required>
-        <button type="submit">Вызвать</button>
-    </form>
-    <p id="taxiResult" style="color:green; font-weight:bold;"></p>
-</div>
-
-<!-- Карта с машинками -->
-<div id="map" style="height:400px;"></div>
-
-<!-- Модальное окно для входа/регистрации -->
-<div id="loginModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
-    <div style="background:#fff; padding:20px; width:300px; margin:100px auto; position:relative;">
-        <span style="position:absolute; top:5px; right:10px; cursor:pointer;" onclick="closeLoginModal()">X</span>
-        <h3>Вход/Регистрация</h3>
-        <form id="loginForm" onsubmit="return loginUser()">
-            <input type="email" id="email" placeholder="Email" required><br><br>
-            <input type="password" id="password" placeholder="Пароль" required><br><br>
-            <input type="text" id="name" placeholder="Имя (для регистрации)"><br><br>
-            <button type="submit">Войти / Зарегистрироваться</button>
-        </form>
-        <p id="loginMsg" style="color:red;"></p>
     </div>
 </div>
 
+<div class="main-container">
+    <div class="call-taxi">
+        <h3>Вызвать такси</h3>
+        <form id="taxiForm" onsubmit="return callTaxi()">
+            <input type="text" id="from" placeholder="Откуда" required>
+            <input type="text" id="to" placeholder="Куда" required>
+            <button type="submit">Вызвать</button>
+        </form>
+        <p id="taxiResult" class="taxi-result"></p>
+    </div>
+    <div id="map"></div>
+</div>
+
+<!-- Модальное окно -->
+<div id="loginModal">
+    <div class="modal-content">
+        <span class="close" onclick="closeLoginModal()">×</span>
+        <h3>Вход / Регистрация</h3>
+        <form id="loginForm" onsubmit="return loginUser()">
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Пароль" required>
+            <input type="text" id="name" placeholder="Имя (для регистрации)">
+            <button type="submit">Войти / Зарегистрироваться</button>
+            <p id="loginMsg" style="color:red; margin-top:10px;"></p>
+        </form>
+    </div>
+</div>
+
+<!-- ====== Скрипты ====== -->
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 <script>
-    // Инициализация карты
-    var map = L.map('map').setView([55.751244, 37.618423], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
+ymaps.ready(init);
 
-    // 5 машинок на карте
+function init(){
+    var map = new ymaps.Map("map", {
+        center: [55.751244, 37.618423],
+        zoom: 12
+    });
+
+    // Иконка такси
+    var taxiIcon = {
+        iconLayout: 'default#image',
+        iconImageHref: '/static/images/car.png',
+        iconImageSize: [40, 40],
+        iconImageOffset: [-20, -20]
+    };
+
+    // Машинки
     var cars = [];
-    for(let i=0; i<5; i++){
-        let marker = L.marker([55.751244 + Math.random()*0.05, 37.618423 + Math.random()*0.05]).addTo(map);
-        cars.push(marker);
+    for(let i=0;i<5;i++){
+        let placemark = new ymaps.Placemark([
+            55.751244 + Math.random()*0.05, 
+            37.618423 + Math.random()*0.05
+        ], {}, taxiIcon);
+        map.geoObjects.add(placemark);
+        cars.push(placemark);
     }
 
-    // Движение машинок
-    setInterval(() => {
-        cars.forEach(marker => {
-            let latlng = marker.getLatLng();
-            let newLat = latlng.lat + (Math.random()-0.5)*0.001;
-            let newLng = latlng.lng + (Math.random()-0.5)*0.001;
-            marker.setLatLng([newLat,newLng]);
+    // Анимация движения
+    setInterval(()=>{
+        cars.forEach(marker=>{
+            let coords = marker.geometry.getCoordinates();
+            let newLat = coords[0] + (Math.random()-0.5)*0.001;
+            let newLng = coords[1] + (Math.random()-0.5)*0.001;
+            marker.geometry.setCoordinates([newLat,newLng]);
         });
-    }, 1000);
+    },1000);
+}
 
-    // Функция вызова такси (псевдо)
-    function callTaxi(){
-        var from = document.getElementById('from').value;
-        var to = document.getElementById('to').value;
-        document.getElementById('taxiResult').innerText = `Такси направлено от "${from}" к "${to}"`;
-        return false;
-    }
+// Вызов такси
+function callTaxi(){
+    var from = document.getElementById('from').value;
+    var to = document.getElementById('to').value;
+    document.getElementById('taxiResult').innerText = `Такси направлено от "${from}" к "${to}"`;
+    return false;
+}
 
-    // Модальное окно
-    function showLoginModal(){ document.getElementById('loginModal').style.display='block'; }
-    function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
+// Модальное окно
+function showLoginModal(){ document.getElementById('loginModal').style.display='block'; }
+function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
 
-    // Вход / регистрация через AJAX
-    async function loginUser(){
-        let email = document.getElementById('email').value;
-        let password = document.getElementById('password').value;
-        let name = document.getElementById('name').value;
-        let msg = document.getElementById('loginMsg');
+// Вход / регистрация
+async function loginUser(){
+    let email = document.getElementById('email').value;
+    let password = document.getElementById('password').value;
+    let name = document.getElementById('name').value;
+    let msg = document.getElementById('loginMsg');
 
-        try {
-            let url = name ? '/register' : '/login';
-            let formData = new FormData();
-            formData.append('email', email);
-            formData.append('password', password);
-            if(name) formData.append('name', name);
+    try {
+        let url = name ? '/register' : '/login';
+        let formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        if(name) formData.append('name', name);
 
-            let res = await fetch(url, {method:'POST', body:formData});
-            if(res.redirected){
-                window.location.href = res.url;
-            } else {
-                let text = await res.text();
-                msg.innerText = text;
-            }
-        } catch(e){
-            msg.innerText = "Ошибка сервера, попробуйте позже.";
+        let res = await fetch(url, {method:'POST', body:formData});
+        if(res.redirected){
+            window.location.href = res.url;
+        } else {
+            let text = await res.text();
+            msg.innerText = text;
         }
-        return false;
+    } catch(e){
+        msg.innerText = "Ошибка сервера, попробуйте позже.";
     }
+    return false;
+}
 </script>
 {% endblock %}
