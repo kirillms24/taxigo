@@ -2,51 +2,12 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ТаксиGo</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
-    <header>
-        <h1>ТаксиGo</h1>
-        <nav>
-            {% if user %}
-                <a href="{{ url_for('profile') }}">Личный кабинет</a>
-                <a href="{{ url_for('logout') }}">Выйти</a>
-            {% else %}
-                <button id="loginBtn">Вход/Регистрация</button>
-            {% endif %}
-            <a href="{{ url_for('support') }}">Поддержка</a>
-            <a href="#">Админ</a>
-        </nav>
-    </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- Модальное окно -->
-    <div id="loginModal" style="display:none;">
-        <form method="POST" action="{{ url_for('login') }}">
-            <h3>Вход</h3>
-            <input type="email" name="email" placeholder="Email" required>
-            <input type="password" name="password" placeholder="Пароль" required>
-            <button type="submit">Войти</button>
-        </form>
-        <form method="POST" action="{{ url_for('register') }}">
-            <h3>Регистрация</h3>
-            <input type="text" name="name" placeholder="Имя" required>
-            <input type="email" name="email" placeholder="Email" required>
-            <input type="password" name="password" placeholder="Пароль" required>
-            <button type="submit">Зарегистрироваться</button>
-        </form>
-        <button onclick="closeModal()">Закрыть</button>
-    </div>
-
-    <script>
-        const modal = document.getElementById('loginModal');
-        document.getElementById('loginBtn')?.addEventListener('click', () => { modal.style.display = 'block'; });
-        function closeModal(){ modal.style.display='none'; }
-    </script>
+    {% block content %}{% endblock %}
 </body>
 </html>
+
